@@ -35,7 +35,7 @@ except ImportError:
     requests = None
 
 try:
-    from zope.interface import Interface, Attribute, implements
+    from zope.interface import Interface, Attribute, classImplements
     HAS_ZOPE = True
 except ImportError:
     HAS_ZOPE = False
@@ -594,8 +594,6 @@ class Draft3Validator(ValidatorMixin, _Draft34CommonMixin, object):
     A validator for JSON Schema draft 3.
 
     """
-    if HAS_ZOPE:
-        implements(IValidator)
 
     def validate_type(self, types, instance, schema):
         types = _list(types)
@@ -743,6 +741,9 @@ class Draft3Validator(ValidatorMixin, _Draft34CommonMixin, object):
         },
     }
 
+if HAS_ZOPE:
+    classImplements(Draft3Validator, IValidator)
+
 
 @validates("draft4")
 class Draft4Validator(ValidatorMixin, _Draft34CommonMixin, object):
@@ -750,8 +751,6 @@ class Draft4Validator(ValidatorMixin, _Draft34CommonMixin, object):
     A validator for JSON Schema draft 4.
 
     """
-    if HAS_ZOPE:
-        implements(IValidator)
 
     def validate_type(self, types, instance, schema):
         types = _list(types)
@@ -999,6 +998,9 @@ class Draft4Validator(ValidatorMixin, _Draft34CommonMixin, object):
         },
         "default": {}
     }
+
+if HAS_ZOPE:
+    classImplements(Draft4Validator, IValidator)
 
 
 class FormatChecker(object):
