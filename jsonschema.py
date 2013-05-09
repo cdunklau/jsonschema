@@ -34,6 +34,12 @@ try:
 except ImportError:
     requests = None
 
+try:
+    from zope.interface import Interface, Attribute, implements
+    HAS_ZOPE = True
+except ImportError:
+    HAS_ZOPE = False
+
 __version__ = "1.4.0-dev"
 
 PY3 = sys.version_info[0] >= 3
@@ -214,6 +220,98 @@ def validates(version):
             meta_schemas[cls.META_SCHEMA["id"]] = cls
         return cls
     return _validates
+
+
+if not HAS_ZOPE:
+    IValidator = None
+else:
+    class IValidator(Interface):
+        """
+        :argument dict schema: the schema that the validator will
+                               validate with. It is assumed to be
+                               valid, and providing an invalid
+                               schema can lead to undefined
+                               behavior. See
+                               :meth:`IValidator.check_schema` to
+                               validate a schema first.
+        :argument types: Override or extend the list of known types when validating the :validator:`type` property. Should map strings (type names) to class objects that will be checked via :func:`isinstance`. See :ref:`validating-types` for details.
+        :type types: dict or iterable of 2-tuples
+        :argument resolver: an instance of :class:`RefResolver` that will be used to resolve :validator:`$ref` properties (JSON references). If unprovided, one will be created.
+        :argument format_checker: an instance of :class:`FormatChecker` whose :meth:`~conforms` method will be called to check and see if instances conform to each :validator:`format` property present in the schema. If unprovided, no validation will be done for :validator:`format`.
+
+        """
+        DEFAULT_TYPES = Attribute("""The default mapping of JSON types to Python types used when validating type properties in JSON schemas.""")
+        META_SCHEMA = Attribute("""An object representing the validator's meta schema (the schema that describes valid schemas in the given version).""")
+        schema = Attribute("""The schema that was passed in when initializing the validator.""")
+
+        def __init__(schema, types, resolver=None, format_checker=None):
+            pass
+
+        #@classmethod
+        def check_schema(schema):
+            """
+            Validate the given schema against the validator's :attr:`META_SCHEMA`.
+
+            :raises: :exc:`SchemaError` if the schema is invalid
+
+            """
+
+        def is_type(instance, type):
+            """
+            Check if the instance is of the given (JSON Schema) type.
+
+            :type type: str
+            :rtype: bool
+            :raises: :exc:`UnknownType` if ``type`` is not a known type.
+
+            The special type ``"any"`` is valid for any given instance.
+
+            """
+
+        def is_valid(instance):
+            """
+            Check if the instance is valid under the current :attr:`schema`.
+
+            :rtype: bool
+
+                >>> schema = {"maxItems" : 2}
+                >>> Draft3Validator(schema).is_valid([2, 3, 4])
+                False
+
+            """
+
+        def iter_errors(instance):
+            """
+            Lazily yield each of the validation errors in the given instance.
+
+            :rtype: an iterable of :exc:`ValidationError`\s
+
+                >>> schema = {
+                ...     "type" : "array",
+                ...     "items" : {"enum" : [1, 2, 3]},
+                ...     "maxItems" : 2,
+                ... }
+                >>> v = Draft3Validator(schema)
+                >>> for error in sorted(v.iter_errors([2, 3, 4]), key=str):
+                ...     print(error.message)
+                4 is not one of [1, 2, 3]
+                [2, 3, 4] is too long
+
+            """
+
+        def validate(instance):
+            """
+            Check if the instance is valid under the current :attr:`schema`.
+
+            :raises: :exc:`ValidationError` if the instance is invalid
+
+                >>> schema = {"maxItems" : 2}
+                >>> Draft3Validator(schema).validate([2, 3, 4])
+                Traceback (most recent call last):
+                    ...
+                ValidationError: [2, 3, 4] is too long
+
+            """
 
 
 class ValidatorMixin(object):
@@ -496,6 +594,8 @@ class Draft3Validator(ValidatorMixin, _Draft34CommonMixin, object):
     A validator for JSON Schema draft 3.
 
     """
+    if HAS_ZOPE:
+        implements(IValidator)
 
     def validate_type(self, types, instance, schema):
         types = _list(types)
@@ -650,6 +750,8 @@ class Draft4Validator(ValidatorMixin, _Draft34CommonMixin, object):
     A validator for JSON Schema draft 4.
 
     """
+    if HAS_ZOPE:
+        implements(IValidator)
 
     def validate_type(self, types, instance, schema):
         types = _list(types)

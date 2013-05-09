@@ -29,10 +29,14 @@ except ImportError:
 
 from jsonschema import (
     PY3, FormatError, RefResolutionError, SchemaError, UnknownType,
-    ValidationError, ErrorTree, Draft3Validator, Draft4Validator,
+    ValidationError, ErrorTree,
+    IValidator, Draft3Validator, Draft4Validator,
     FormatChecker, RefResolver, ValidatorMixin, draft3_format_checker,
-    draft4_format_checker, validate,
+    draft4_format_checker, validate, HAS_ZOPE
 )
+
+if HAS_ZOPE:
+    from zope.interface import verify
 
 
 THIS_DIR = os.path.dirname(__file__)
@@ -1005,3 +1009,13 @@ def sorted_errors(errors):
             [str(e) for e in error.schema_path]
         )
     return sorted(errors, key=key)
+
+
+@unittest.skipIf(not HAS_ZOPE,
+                 "Requires zope.interface to run")
+class TestValidatorInterfaces(unittest.TestCase):
+    def test_draft_3_validator(self):
+        verify.verifyClass(IValidator, Draft3Validator)
+
+    def test_draft_4_validator(self):
+        verify.verifyClass(IValidator, Draft4Validator)
